@@ -81,9 +81,11 @@ try:
         r_type = func['rtnType']
         r_type = re_m_ret.findall(r_type)[0]
         p_list = []
+        p_list_d = []
         p_name_list = []
         for param in func['parameters']:
             p_type = param['type']
+            o_type = p_type
             p_real_type = p_type
             p_sub_type = p_type
             if re_type.match(p_type):
@@ -91,20 +93,29 @@ try:
                 p_sub_type = re_struct.findall(p_real_type)[0]
             if p_real_type in cppHeader.classes:
                 p_type = re.sub('(Vk[A-Za-z0-9]*)', p_sub_type, p_type)
-
             p_name = param['name']
             p_name_list.append(p_name)
             p_list.append(' '.join([p_type, p_name]))
+            p_list_d.append({'p':o_type, 'r':p_type, 'n':p_name})
             
         if re_method.match(f_name):
             f_name = re_method.findall(f_name)[0]
-
+        #print p_list_d
         inline_func_head = 'inline {0} {1}({2})\n{{'.format(r_type, f_name, ', '.join(p_list))
         inline_func_call = ''
+        call_params = []
+        for d in p_list_d:
+            call_param = ''
+            if d['p'] != d['r']:
+                call_param = 'reinterpret_cast<{0}>({1})'.format(d['p'], d['n'])
+            else:
+                call_param = d['n']
+            call_params.append(call_param)
+
         if r_type == 'void':
-            inline_func_call = '  {0}({1});'.format(o_name, ', '.join(p_name_list))
+            inline_func_call = '  {0}({1});'.format(o_name, ', '.join(call_params))
         else:
-            inline_func_call = '  return {0}({1});'.format(o_name, ', '.join(p_name_list))
+            inline_func_call = '  return {0}({1});'.format(o_name, ', '.join(call_params))
         inline_func_tail = '}\n'
         inline_funcs.append('\n'.join([inline_func_head, inline_func_call, inline_func_tail]))
     # write classes
